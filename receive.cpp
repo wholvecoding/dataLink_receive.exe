@@ -93,6 +93,7 @@ void wlc(BYTE Fram);
 //多行文本框
 #define MEMO1 801
 #define MEMO2 802
+#define MEM03 803
 //--------------------------------------------------------------
 WSADATA ws;
 SOCKET Cs1, Cs2;
