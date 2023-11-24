@@ -29,7 +29,7 @@ int APIENTRY WinMain(HINSTANCE hI, HINSTANCE hP, LPSTR lp, int nC)
 
 	hWnd = CreateWindow(TEXT("W1"), TEXT("接收端[8888]测试"),
 		WS_DLGFRAME | WS_SYSMENU,
-		300, 10, 200, 300,
+		100, 300, 700, 500,
 		NULL, NULL, hI, NULL);
 
 	if (!hWnd)   return FALSE;
@@ -97,8 +97,11 @@ void wlc(BYTE Fram);
 WSADATA ws;
 SOCKET Cs1, Cs2;
 struct sockaddr_in Cs1A, Cs2A;
+int SendBufLeng;			//报文长度
+char Sendi;					//数据帧发送计数
 char aa[200];
 char bb[200];
+char sendback[200];
 int d, i;
 #define Cs2Port 7777		//远程端口
 #define Cs1Port 8888		//本地端口
@@ -109,6 +112,7 @@ int d, i;
 //你可以在这里定义变量
 void wlcSend(BYTE c);	//物理层：发送一个字节
 BYTE wlcRev();			//物理层：接收一个字节
+bool checkByte(BYTE c);
 //--------------------------------------------------------------
 //消息处理
 LRESULT CALLBACK WndProc(HWND hW, UINT msg, WPARAM wP, LPARAM lP)
@@ -139,11 +143,20 @@ LRESULT CALLBACK WndProc(HWND hW, UINT msg, WPARAM wP, LPARAM lP)
 		Cs2A.sin_addr.s_addr = inet_addr(Cs2IP);
 		WSAAsyncSelect(Cs1, hW, WM_USER + 1, FD_READ);
 		Beep(2000, 100);
-		CreateEdit(const_cast <char*>("接收端"), 2, 2, 130, 20, EDIT1, hW, hInst);
-		CreateButton(const_cast <char*>("Quit"), 140, 2, 50, 16, BUTTON1, hW, hInst);
-		CreateButton(const_cast <char*>("Reset"), 140, 30, 50, 16, BUTTON2, hW, hInst);
-		CreateMemo(const_cast <char*>("物理层收到的信息"), 0, 50, 90, 220, MEMO1, hW, hInst);
-		CreateMemo(const_cast <char*>("上交网络层的信息"), 100, 50, 90, 220, MEMO2, hW, hInst);
+		CreateEdit(const_cast <char*>("接收端"), 20, 20, 230, 70, EDIT1, hW, hInst);
+		CreateButton(const_cast <char*>("Quit"), 250, 20, 50, 60, BUTTON1, hW, hInst);
+		CreateButton(const_cast <char*>("Reset"), 350, 20, 50, 60, BUTTON2, hW, hInst);
+		CreateWindow("STATIC", "接收端物理层发送的信息",
+			WS_VISIBLE | WS_CHILD,
+			50, 100, 200, 20, hW, NULL, hInst, NULL);
+		CreateMemo(const_cast <char*>(""), 50, 150, 200, 220, MEMO1, hW, hInst);
+
+		//CreateMemo(const_cast <char*>("物理层收到的信息"), 0, 50, 90, 220, MEMO1, hW, hInst);
+		CreateWindow("STATIC", "物理层上交网络层的消息",
+			WS_VISIBLE | WS_CHILD,
+			260, 100, 200, 20, hW, NULL, hInst, NULL);
+		CreateMemo(const_cast<char*>(""), 260, 150, 200, 220, MEMO2, hW, hInst);
+		//CreateMemo(const_cast <char*>("上交网络层的信息"), 100, 50, 90, 220, MEMO2, hW, hInst);
 
 		break;
 		//============================================================================
@@ -153,7 +166,20 @@ LRESULT CALLBACK WndProc(HWND hW, UINT msg, WPARAM wP, LPARAM lP)
 		switch (LOWORD(lP))
 		{
 		case FD_READ:
-			bb[0] = wlcRev();			//物理层：接收一个字节
+			
+			bb[0] = wlcRev();
+
+			
+			if (checkByte(bb[0])) {
+					sendback[0] = ( ((bb[0] >> 4) & 0x07)<< 4)|0x0F;
+					wlcSend(sendback[0]);
+				}
+				else {
+					sendback[0] = (bb[0] >> 4 & 0x07) << 4 | 0x0E;
+					wlcSend(sendback[0]);
+				}	
+			
+			
 			bb[1] = 0;
 			char buf[22];
 			wsprintf(buf, "%02XH", (unsigned char)bb[0]);
@@ -196,5 +222,18 @@ BYTE wlcRev()			//物理层：接收一个字节
 	d = recvfrom(Cs1, b, 1, 0, (struct sockaddr*)&Cs2A, &d);
 	return b[0];
 }
+bool checkByte(BYTE c) //C为一个字节
+{
+	int i, sum = 0;
+	BYTE x = 0x01;
+	for (i = 0; i < 8; i++)
+	{
+		if (c & x) sum++;
+		x = x << 1;
+	}
+	if (sum % 2) return false;
+	return true;
+}
+
 //--------------------------------------------------------------
 
